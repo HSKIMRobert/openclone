@@ -12,6 +12,7 @@ import {
   type ConversationPersistEvent,
 } from "../lib/conversation.js";
 import { streamChat } from "../lib/stream-chat.js";
+import { normalizeError } from "../lib/format-error.js";
 import { Markdown } from "./Markdown.js";
 import { MessageView, type MessageItem } from "./MessageView.js";
 import { InputBox } from "./InputBox.js";
@@ -243,8 +244,14 @@ export function App(props: AppProps): React.JSX.Element {
       await persist("turn");
     } catch (error) {
       cancelStreamFlush();
-      const message = error instanceof Error ? error.message : String(error);
-      appendItem({ kind: "system-banner", text: `[openclone: error during streaming: ${message}]` });
+      const normalized = normalizeError(error);
+      setMessages((previous) => {
+        if (previous.length === 0) return previous;
+        const last = previous[previous.length - 1];
+        if (last.role === "user") return previous.slice(0, -1);
+        return previous;
+      });
+      appendItem({ kind: "error-block", title: normalized.title, message: normalized.message, hint: normalized.hint });
       setStreaming(null);
     } finally {
       setBusy(false);
